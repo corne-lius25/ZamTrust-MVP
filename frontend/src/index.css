@@ -1,0 +1,95 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Base ---------- */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface text-ink font-sans text-body;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-accent text-white;
+  }
+
+  /* Focus ring — visible, accessible, consistent */
+  :focus-visible {
+    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Remove default focus for mouse users (kept for keyboard users) */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Headings reset */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+
+  /* Links */
+  a {
+    @apply text-ink underline-offset-4 transition-colors;
+  }
+
+  /* Number alignment in tables */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ---------- Utilities ---------- */
+@layer utilities {
+  /* Container — matches our content width */
+  .container-content {
+    @apply max-w-content mx-auto px-6 lg:px-8;
+  }
+
+  /* Mono text for hashes, codes, IDs */
+  .text-mono {
+    @apply font-mono text-small tracking-tight;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* Eyebrow — small uppercase label above sections */
+  .eyebrow {
+    @apply text-caption uppercase tracking-wider text-ink-muted;
+  }
+
+  /* Underline on hover for quiet links */
+  .link-quiet {
+    @apply text-ink-secondary no-underline hover:text-ink transition-colors;
+  }
+
+  /* Prevent text selection on UI chrome */
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
