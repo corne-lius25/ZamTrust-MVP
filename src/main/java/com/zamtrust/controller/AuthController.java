@@ -1,10 +1,12 @@
 package com.zamtrust.controller;
 
+import com.zamtrust.domain.IssuedToken;
 import com.zamtrust.domain.Role;
 import com.zamtrust.domain.User;
 import com.zamtrust.dto.AuthResponse;
 import com.zamtrust.dto.LoginRequest;
 import com.zamtrust.dto.RegisterRequest;
+import com.zamtrust.repository.IssuedTokenRepository;
 import com.zamtrust.repository.UserRepository;
 import com.zamtrust.security.JwtService;
 import com.zamtrust.security.RateLimiter;
@@ -12,10 +14,12 @@ import com.zamtrust.service.AuditService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -29,17 +33,20 @@ public class AuthController {
     private static final int LOGIN_LIMIT = 10;
 
     private final UserRepository userRepository;
+    private final IssuedTokenRepository issuedTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuditService auditService;
     private final RateLimiter rateLimiter;
 
     public AuthController(UserRepository userRepository,
+                          IssuedTokenRepository issuedTokenRepository,
                           PasswordEncoder passwordEncoder,
                           JwtService jwtService,
                           AuditService auditService,
                           RateLimiter rateLimiter) {
         this.userRepository = userRepository;
+        this.issuedTokenRepository = issuedTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.auditService = auditService;
@@ -57,8 +64,6 @@ public class AuthController {
                     "error", "Too many registration attempts. Please try again later."));
         }
 
-        // Generic message to prevent user enumeration (finding #5).
-        // Attacker cannot distinguish "username taken" from "email taken".
         if (userRepository.existsByUsername(req.username())
                 || userRepository.existsByEmail(req.email())) {
             auditService.log(null, "REGISTER_FAILED", "auth", "duplicate user", ip);
@@ -95,17 +100,56 @@ public class AuthController {
                 .filter(u -> passwordEncoder.matches(req.password(), u.getPasswordHash()))
                 .filter(User::isEnabled)
                 .<ResponseEntity<?>>map(u -> {
-                    String token = jwtService.generate(u.getUsername());
+                    JwtService.IssuedJwt issued = jwtService.generate(u.getUsername());
+
+                    // Save issued token so it can be revoked later (finding #8)
+                    issuedTokenRepository.save(IssuedToken.builder()
+                            .jti(issued.jti())
+                            .userId(u.getId())
+                            .issuedAt(Instant.now())
+                            .expiresAt(issued.expiresAt())
+                            .revoked(false)
+                            .build());
+
                     auditService.log(u, "LOGIN", "user:" + u.getId(), "success", ip);
                     Set<String> roles = u.getRoles().stream()
                             .map(Enum::name).collect(Collectors.toSet());
-                    return ResponseEntity.ok(new AuthResponse(token, u.getUsername(), roles));
+                    return ResponseEntity.ok(new AuthResponse(issued.token(), u.getUsername(), roles));
                 })
                 .orElseGet(() -> {
                     auditService.log(null, "LOGIN_FAILED", "user", req.username(), ip);
                     return ResponseEntity.status(401).body(Map.of(
                             "error", "Invalid username or password."));
                 });
+    }
+
+    /**
+     * Revokes the current token (finding #8).
+     * Requires an authenticated request (Authorization header with the JWT to revoke).
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(Authentication auth, HttpServletRequest http) {
+        if (auth == null || auth.getName() == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+
+        String header = http.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing token"));
+        }
+        String token = header.substring(7);
+
+        try {
+            String jti = jwtService.extractJti(token);
+            issuedTokenRepository.findByJti(jti).ifPresent(it -> {
+                it.setRevoked(true);
+                issuedTokenRepository.save(it);
+            });
+            auditService.log(null, "LOGOUT", "auth", auth.getName(), clientIp(http));
+            return ResponseEntity.ok(Map.of("message", "Logged out"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid token"));
+        }
     }
 
     private String clientIp(HttpServletRequest request) {

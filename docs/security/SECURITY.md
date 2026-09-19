@@ -21,8 +21,8 @@ Eleven security findings were identified during this assessment:
 | 5 | User enumeration via /api/auth/register | Medium | **Fixed** |
 | 6 | Incorrect HTTP status for auth failures (403 vs 401) | Info | **Fixed** |
 | 7 | Sequential verification IDs allow enumeration | Low | **Fixed** |
-| 8 | JWT lacks jti claim (no revocation) | Medium | Open |
-| 9 | JWT missing iss and aud claims | Info | Open |
+| 8 | JWT lacks jti claim (no revocation) | Medium | **Fixed** |
+| 9 | JWT missing iss and aud claims | Info | **Fixed** |
 | 10 | No MIME type or extension whitelist on upload | High | **Fixed** |
 | 11 | Oversized upload returns HTTP 500 instead of 413 | Medium | **Fixed** |
 
@@ -179,14 +179,9 @@ Eleven security findings were identified during this assessment:
       "exp": 1789839166
     }
 
-**Remediation:**
-1. Add a random jti (UUID v4) on issue
-2. Store issued token IDs in issued_tokens(jti, user_id, expires_at, revoked)
-3. Verify jti existence on each request
-4. Revoke tokens on logout / password change
-5. Purge expired rows periodically
+**Remediation:** Each token now includes a UUID v4 jti. All issued tokens are stored in the issued_tokens table (jti, userId, issuedAt, expiresAt, revoked). JwtAuthFilter checks the jti on every request and rejects revoked or missing records. POST /api/auth/logout marks the current jti as revoked. A scheduled job purges expired rows hourly. Verified locally: same token returns 401 after logout.
 
-**Status:** Open
+**Status:** Fixed — 2026-09-20
 
 ---
 
@@ -199,11 +194,9 @@ Eleven security findings were identified during this assessment:
 
 **Description:** The JWT does not declare iss (issuer) or aud (audience). Adding and validating these claims now is cheap defence-in-depth for future multi-service scenarios.
 
-**Remediation:**
-    generate(): .issuer("zamtrust").audience().add("zamtrust-api").and()
-    parse():    .requireIssuer("zamtrust").requireAudience("zamtrust-api")
+**Remediation:** JwtService.generate() now sets .issuer("zamtrust") and .audience().add("zamtrust-api"). JwtService.parse() uses .requireIssuer("zamtrust") and .requireAudience("zamtrust-api") so tokens from other systems cannot be replayed. Test verifies all claims.
 
-**Status:** Open
+**Status:** Fixed — 2026-09-20
 
 ---
 
