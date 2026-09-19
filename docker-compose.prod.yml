@@ -1,0 +1,80 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: zamtrust-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - zamtrust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zamtrust/app:latest
+    container_name: zamtrust-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      ZAMTRUST_JWT_SECRET: ${ZAMTRUST_JWT_SECRET}
+      ZAMTRUST_BASE_URL: ${ZAMTRUST_BASE_URL}
+      ZAMTRUST_STORAGE_DOCUMENTS_DIR: /app/storage/documents
+      ZAMTRUST_STORAGE_KEYS_DIR: /app/storage/keys
+    volumes:
+      - app_storage:/app/storage
+    networks:
+      - zamtrust
+    expose:
+      - "8080"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: zamtrust-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    networks:
+      - zamtrust
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: zamtrust-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
+    networks:
+      - zamtrust
+
+volumes:
+  postgres_data:
+  app_storage:
+
+networks:
+  zamtrust:
+    driver: bridge

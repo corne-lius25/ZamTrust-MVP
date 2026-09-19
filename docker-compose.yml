@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zamtrust-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zamtrust
+      POSTGRES_USER: zamtrust
+      POSTGRES_PASSWORD: zamtrust
+    ports:
+      - "5432:5432"
+    volumes:
+      - zamtrust_pgdata:/var/lib/postgresql/data
+
+volumes:
+  zamtrust_pgdata:

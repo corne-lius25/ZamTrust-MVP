@@ -1,0 +1,17 @@
+target/
+.idea/
+*.iml
+.iws
+.ipr
+out/
+.vscode/
+.DS_Store
+storage/
+*.log
+logs/
+.env
+.env.*
+!.env.example
+certbot/
+nginx/.htpasswd
+docs/screenshots/
