@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.time.Year;
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +24,8 @@ import java.util.UUID;
 public class DocumentService {
 
     private static final long MAX_SIZE_BYTES = 25L * 1024 * 1024; // 25MB
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int MAX_ID_ATTEMPTS = 5;
 
     private final DocumentRepository documentRepository;
     private final CryptoService cryptoService;
@@ -107,10 +110,28 @@ public class DocumentService {
         return name.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 
+    /**
+     * Generates a random verification ID of the form ZT-YYYY-XXXXXXXXXXXX.
+     * The 12-hex-char suffix is drawn from SecureRandom (48 bits of entropy),
+     * making IDs unguessable and preventing enumeration across tenants.
+     * Resolves finding #7.
+     *
+     * Retries on collision (extremely unlikely but handled).
+     */
     private String generateVerificationId() {
         int year = Year.now().getValue();
         String prefix = "ZT-" + year + "-";
-        long seq = documentRepository.countByVerificationIdStartingWith(prefix) + 1;
-        return String.format("%s%06d", prefix, seq);
+        for (int attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt++) {
+            byte[] bytes = new byte[6]; // 48 bits
+            SECURE_RANDOM.nextBytes(bytes);
+            StringBuilder hex = new StringBuilder(12);
+            for (byte b : bytes) hex.append(String.format("%02x", b));
+            String candidate = prefix + hex.toString().toUpperCase();
+            if (documentRepository.findByVerificationId(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException(
+                "Failed to generate a unique verification ID after " + MAX_ID_ATTEMPTS + " attempts");
     }
 }
