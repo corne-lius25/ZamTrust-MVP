@@ -18,7 +18,7 @@ Eleven security findings were identified during this assessment:
 | 2 | Missing Referrer-Policy header | Low | **Fixed** |
 | 3 | Missing Permissions-Policy header | Low | **Fixed** |
 | 4 | Server header discloses technology fingerprint | Info | Open |
-| 5 | User enumeration via /api/auth/register | Medium | Open |
+| 5 | User enumeration via /api/auth/register | Medium | **Fixed** |
 | 6 | Incorrect HTTP status for auth failures (403 vs 401) | Info | Open |
 | 7 | Sequential verification IDs allow enumeration | Low | Open |
 | 8 | JWT lacks jti claim (no revocation) | Medium | Open |
@@ -114,12 +114,9 @@ Eleven security findings were identified during this assessment:
         -d '{"username":"clouduser","email":"different@example.com","password":"StrongPass1!","fullName":"Dup","organization":"X"}'
     {"error":"Username already taken"}
 
-**Remediation:**
-- Return a single generic message for all registration failures
-- Enforce a strict rate limit on /api/auth/register
-- Consider CAPTCHA after repeated failures from the same IP
+**Remediation:** Registration now returns a single generic error for both duplicate usernames and duplicate emails. RateLimiter (sliding-window, per-IP) applied to /api/auth/register (5/15min) and /api/auth/login (10/15min). HTTP 429 on limit exceeded. 3 unit tests.
 
-**Status:** Open
+**Status:** Fixed — 2026-09-19
 
 ---
 
