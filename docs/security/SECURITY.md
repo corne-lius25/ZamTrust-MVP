@@ -19,7 +19,7 @@ Eleven security findings were identified during this assessment:
 | 3 | Missing Permissions-Policy header | Low | **Fixed** |
 | 4 | Server header discloses technology fingerprint | Info | Open |
 | 5 | User enumeration via /api/auth/register | Medium | **Fixed** |
-| 6 | Incorrect HTTP status for auth failures (403 vs 401) | Info | Open |
+| 6 | Incorrect HTTP status for auth failures (403 vs 401) | Info | **Fixed** |
 | 7 | Sequential verification IDs allow enumeration | Low | Open |
 | 8 | JWT lacks jti claim (no revocation) | Medium | Open |
 | 9 | JWT missing iss and aud claims | Info | Open |
@@ -134,9 +134,9 @@ Eleven security findings were identified during this assessment:
         https://zamtrust-mvp-production.up.railway.app/api/documents
     HTTP/2 403
 
-**Remediation:** Configure Spring Security to return 401 for authentication failures with a JSON body.
+**Remediation:** Custom JsonAuthenticationEntryPoint returns HTTP 401 Unauthorized with a JSON body (using Spring's autoconfigured ObjectMapper for correct JavaTimeModule support). 403 is now reserved for authorization failures only. 2 tests verify the behaviour.
 
-**Status:** Open
+**Status:** Fixed — 2026-09-19
 
 ---
 

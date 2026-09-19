@@ -1,5 +1,6 @@
 package com.zamtrust.config;
 
+import com.zamtrust.security.JsonAuthenticationEntryPoint;
 import com.zamtrust.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,9 +19,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;
     }
 
     @Bean
@@ -29,11 +33,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jsonAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/verifications/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
