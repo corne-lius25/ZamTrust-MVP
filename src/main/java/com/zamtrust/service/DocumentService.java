@@ -5,6 +5,7 @@ import com.zamtrust.domain.DocumentStatus;
 import com.zamtrust.domain.User;
 import com.zamtrust.exception.FileTooLargeException;
 import com.zamtrust.exception.InvalidFileException;
+import com.zamtrust.exception.InvalidFileException;
 import com.zamtrust.exception.ResourceNotFoundException;
 import com.zamtrust.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,17 +26,22 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final CryptoService cryptoService;
+    private final FileTypeValidator fileTypeValidator;
 
     @Value("${zamtrust.storage.documents-dir}")
     private String docsDir;
 
-    public DocumentService(DocumentRepository documentRepository, CryptoService cryptoService) {
+    public DocumentService(DocumentRepository documentRepository,
+                           CryptoService cryptoService,
+                           FileTypeValidator fileTypeValidator) {
         this.documentRepository = documentRepository;
         this.cryptoService = cryptoService;
+        this.fileTypeValidator = fileTypeValidator;
     }
 
     public Document upload(MultipartFile file, User owner, String title) {
         validate(file);
+        fileTypeValidator.validate(file);
         try {
             Path dir = Paths.get(docsDir);
             Files.createDirectories(dir);

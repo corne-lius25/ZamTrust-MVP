@@ -23,7 +23,7 @@ Eleven security findings were identified during this assessment:
 | 7 | Sequential verification IDs allow enumeration | Low | Open |
 | 8 | JWT lacks jti claim (no revocation) | Medium | Open |
 | 9 | JWT missing iss and aud claims | Info | Open |
-| 10 | No MIME type or extension whitelist on upload | High | Open |
+| 10 | No MIME type or extension whitelist on upload | High | **Fixed** |
 | 11 | Oversized upload returns HTTP 500 instead of 413 | Medium | **Fixed** |
 
 ---
@@ -230,13 +230,9 @@ Eleven security findings were identified during this assessment:
         match its real content. Combined with any feature that renders
         files based on contentType, this is exploitable.
 
-**Remediation:**
-1. Whitelist MIME types: application/pdf, image/png, image/jpeg, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain
-2. Verify actual content via magic bytes (Apache Tika)
-3. Serve downloads as application/octet-stream with Content-Disposition: attachment
-4. Sanitise any HTML/SVG preview server-side
+**Remediation:** Implemented in FileTypeValidator.java with an extension whitelist, MIME type cross-check, and magic byte verification. HTML/SVG/executables are rejected. HTTP status: 400 with a clear message.
 
-**Status:** Open
+**Status:** Fixed — 2026-09-19
 
 ---
 
