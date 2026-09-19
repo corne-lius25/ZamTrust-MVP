@@ -3,6 +3,7 @@ package com.zamtrust.service;
 import com.zamtrust.domain.Document;
 import com.zamtrust.domain.DocumentStatus;
 import com.zamtrust.domain.User;
+import com.zamtrust.exception.FileTooLargeException;
 import com.zamtrust.exception.InvalidFileException;
 import com.zamtrust.exception.ResourceNotFoundException;
 import com.zamtrust.repository.DocumentRepository;
@@ -86,7 +87,8 @@ public class DocumentService {
         if (file == null || file.isEmpty())
             throw new InvalidFileException("File is empty");
         if (file.getSize() > MAX_SIZE_BYTES)
-            throw new InvalidFileException("File exceeds 25MB limit");
+            throw new FileTooLargeException(
+                    "File exceeds the 25 MB upload limit. Please reduce the file size and try again.");
 
         String name = file.getOriginalFilename();
         if (name == null || name.isBlank())

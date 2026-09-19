@@ -24,7 +24,7 @@ Eleven security findings were identified during this assessment:
 | 8 | JWT lacks jti claim (no revocation) | Medium | Open |
 | 9 | JWT missing iss and aud claims | Info | Open |
 | 10 | No MIME type or extension whitelist on upload | High | Open |
-| 11 | Oversized upload returns HTTP 500 instead of 413 | Medium | Open |
+| 11 | Oversized upload returns HTTP 500 instead of 413 | Medium | **Fixed** |
 
 ---
 
@@ -254,9 +254,9 @@ Eleven security findings were identified during this assessment:
     $ curl -X POST .../api/documents -F "file=@big.bin" ...
     Status: 500
 
-**Remediation:** Add an @ExceptionHandler for MaxUploadSizeExceededException returning 413 Payload Too Large.
+**Remediation:** Implemented via FileTooLargeException and a corresponding @ExceptionHandler in GlobalExceptionHandler.java. Returns HTTP 413 Payload Too Large.
 
-**Status:** Open
+**Status:** Fixed — 2026-09-19
 
 ---
 
