@@ -37,6 +37,7 @@ zamtrust:
   storage:
     documents-dir: ${ZAMTRUST_STORAGE_DOCUMENTS_DIR:/app/storage/documents}
     keys-dir: ${ZAMTRUST_STORAGE_KEYS_DIR:/app/storage/keys}
+    signatures-dir: ./storage/signatures
   base-url: ${ZAMTRUST_BASE_URL}
 
 management:
