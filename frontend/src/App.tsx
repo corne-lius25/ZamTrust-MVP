@@ -7,6 +7,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import DocumentDetail from './pages/DocumentDetail'
+import Signatures from './pages/Signatures'
+import SignDocument from './pages/SignDocument';
 import PublicVerify from './pages/PublicVerify'
 import AppLayout from './layouts/AppLayout'
 
@@ -38,6 +40,8 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="documents/:id" element={<DocumentDetail />} />
+          <Route path="documents/:id/sign" element={<SignDocument />} />
+          <Route path="signatures" element={<Signatures />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

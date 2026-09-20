@@ -1,3 +1,4 @@
+import { api } from '../lib/api';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -12,7 +13,6 @@ import { CopyButton } from '../components/CopyButton';
 import { Skeleton } from '../components/Skeleton';
 import {
   getDocument,
-  signDocument,
   verifyDocument,
   formatBytes,
   formatDate,
@@ -28,9 +28,7 @@ export default function DocumentDetail() {
   const [doc, setDoc] = useState<DocumentRow | null>(null);
   const [verification, setVerification] = useState<VerificationData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [signing, setSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   async function load() {
     if (!id) return;
     setLoading(true);
@@ -51,24 +49,28 @@ export default function DocumentDetail() {
     }
   }
 
+  async function downloadSignedPdf(id: number) {
+    try {
+      const res = await api.get(`/api/documents/${id}/signed-pdf`, {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `signed-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(toMessage(e));
+    }
+  }
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  async function handleSign() {
-    if (!doc) return;
-    setSigning(true);
-    setError(null);
-    try {
-      await signDocument(doc.id);
-      await load();
-    } catch (err) {
-      setError(toMessage(err));
-    } finally {
-      setSigning(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -124,8 +126,13 @@ export default function DocumentDetail() {
 
         <div className="flex items-center gap-2">
           {doc.status !== 'SIGNED' && (
-            <Button onClick={handleSign} loading={signing} disabled={signing}>
-              {signing ? 'Signing…' : 'Sign document'}
+            <Button onClick={() => navigate(`/app/documents/${doc.id}/sign`)}>
+              Sign document
+            </Button>
+          )}
+          {doc.status === 'SIGNED' && (
+            <Button onClick={() => downloadSignedPdf(doc.id)}>
+              Download signed PDF
             </Button>
           )}
           <Button

@@ -127,7 +127,26 @@ public class DocumentController {
     }
 
     /**
-     * Download the signed PDF (with the visible signature baked in).
+     * Stream the original PDF (before any signature is applied).
+     * Used by the placement UI to render the document.
+     */
+    @GetMapping("/{id}/original-pdf")
+    public ResponseEntity<Resource> downloadOriginalPdf(@PathVariable Long id, Authentication auth) {
+        User user = currentUser(auth);
+        Document doc = documentService.get(id);
+        Path p = documentService.pathOf(doc);
+        Resource resource = new FileSystemResource(p);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + doc.getFileName() + "\"")
+                .body(resource);
+    }
+
+    /**
+     * Stream the original PDF (before any signature is applied).
+     * Used by the placement UI to render the document.
      */
     @GetMapping("/{id}/signed-pdf")
     public ResponseEntity<Resource> downloadSignedPdf(@PathVariable Long id) {
