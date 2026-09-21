@@ -59,6 +59,8 @@ export type VerificationData = {
   signedAt: string | null;
   algorithm: string | null;
   message: string;
+  hasSignedPdf?: boolean;
+  signedPdfSha256?: string | null;
 };
 
 export async function verifyDocument(verificationId: string): Promise<VerificationData> {

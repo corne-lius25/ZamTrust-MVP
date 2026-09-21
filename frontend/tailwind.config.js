@@ -6,6 +6,8 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        'sig-caveat': ['Caveat', 'cursive'],
+        'sig-dancing': ['"Dancing Script"', 'cursive'],
       },
       colors: {
         ink: {

@@ -1,19 +1,36 @@
 package com.zamtrust.controller;
 
+import com.zamtrust.domain.Document;
 import com.zamtrust.dto.VerificationResult;
+import com.zamtrust.exception.ResourceNotFoundException;
+import com.zamtrust.repository.DocumentRepository;
+import com.zamtrust.repository.SignedDocumentRepository;
 import com.zamtrust.service.VerificationService;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @RestController
 @RequestMapping("/api/verifications")
 public class VerificationController {
 
     private final VerificationService verificationService;
+    private final DocumentRepository documentRepository;
+    private final SignedDocumentRepository signedDocumentRepository;
 
-    public VerificationController(VerificationService verificationService) {
+    public VerificationController(VerificationService verificationService,
+                                  DocumentRepository documentRepository,
+                                  SignedDocumentRepository signedDocumentRepository) {
         this.verificationService = verificationService;
+        this.documentRepository = documentRepository;
+        this.signedDocumentRepository = signedDocumentRepository;
     }
 
     @GetMapping("/{verificationId}")
@@ -27,5 +44,57 @@ public class VerificationController {
             @RequestParam("file") MultipartFile file) throws Exception {
         return ResponseEntity.ok(
                 verificationService.verifyUpload(verificationId, file.getBytes()));
+    }
+
+    /**
+     * Public download of the signed PDF for a given verification ID.
+     * No auth required — verification is public by design.
+     */
+    @GetMapping("/{verificationId}/signed-pdf")
+    public ResponseEntity<Resource> downloadSignedPdf(@PathVariable String verificationId) {
+        Document doc = documentRepository.findByVerificationId(verificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("No document for verification ID"));
+
+        var signedDoc = signedDocumentRepository
+                .findFirstByOriginalDocumentIdOrderByCreatedAtDesc(doc.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("This document has not been signed yet"));
+
+        Path p = Path.of(signedDoc.getSignedStoragePath());
+        if (!Files.exists(p)) {
+            throw new ResourceNotFoundException("Signed PDF file is missing");
+        }
+
+        Resource resource = new FileSystemResource(p);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"signed-" + doc.getVerificationId() + ".pdf\"")
+                .body(resource);
+    }
+
+    /**
+     * Public inline preview of the signed PDF (opens in browser instead of downloading).
+     */
+    @GetMapping("/{verificationId}/signed-pdf-preview")
+    public ResponseEntity<Resource> previewSignedPdf(@PathVariable String verificationId) {
+        Document doc = documentRepository.findByVerificationId(verificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("No document for verification ID"));
+
+        var signedDoc = signedDocumentRepository
+                .findFirstByOriginalDocumentIdOrderByCreatedAtDesc(doc.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("This document has not been signed yet"));
+
+        Path p = Path.of(signedDoc.getSignedStoragePath());
+        if (!Files.exists(p)) {
+            throw new ResourceNotFoundException("Signed PDF file is missing");
+        }
+
+        Resource resource = new FileSystemResource(p);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(resource);
     }
 }

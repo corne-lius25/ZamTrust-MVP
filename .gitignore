@@ -21,3 +21,5 @@ prod-test.txt
 test*.txt
 qr.png
 *.tmp
+signed-contract.pdf
+*.pdf

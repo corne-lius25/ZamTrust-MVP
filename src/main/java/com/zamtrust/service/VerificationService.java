@@ -2,10 +2,12 @@ package com.zamtrust.service;
 
 import com.zamtrust.domain.Document;
 import com.zamtrust.domain.Signature;
+import com.zamtrust.domain.SignedDocument;
 import com.zamtrust.dto.VerificationResult;
 import com.zamtrust.exception.ResourceNotFoundException;
 import com.zamtrust.repository.DocumentRepository;
 import com.zamtrust.repository.SignatureRepository;
+import com.zamtrust.repository.SignedDocumentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +21,16 @@ public class VerificationService {
 
     private final DocumentRepository documentRepository;
     private final SignatureRepository signatureRepository;
+    private final SignedDocumentRepository signedDocumentRepository;
     private final CryptoService cryptoService;
 
     public VerificationService(DocumentRepository documentRepository,
                                SignatureRepository signatureRepository,
+                               SignedDocumentRepository signedDocumentRepository,
                                CryptoService cryptoService) {
         this.documentRepository = documentRepository;
         this.signatureRepository = signatureRepository;
+        this.signedDocumentRepository = signedDocumentRepository;
         this.cryptoService = cryptoService;
     }
 
@@ -39,7 +44,7 @@ public class VerificationService {
             return verifyBytes(doc, bytes);
         } catch (Exception e) {
             return new VerificationResult(doc.getVerificationId(), doc.getFileName(),
-                    false, false, null, null, null, "ERROR: " + e.getMessage());
+                    false, false, null, null, null, "ERROR: " + e.getMessage(), false, null);
         }
     }
 
@@ -84,6 +89,13 @@ public class VerificationService {
                 ? "VALID"
                 : (sigOpt.isEmpty() ? "NOT_SIGNED" : "INVALID");
 
+        // Check if a signed PDF exists
+        Optional<SignedDocument> signedOpt =
+                signedDocumentRepository.findFirstByOriginalDocumentIdOrderByCreatedAtDesc(doc.getId());
+
+        boolean hasSignedPdf = signedOpt.isPresent();
+        String signedHash = signedOpt.map(SignedDocument::getSignedSha256).orElse(null);
+
         return new VerificationResult(
                 doc.getVerificationId(),
                 doc.getFileName(),
@@ -92,6 +104,8 @@ public class VerificationService {
                 signer,
                 signedAt,
                 algorithm,
-                message);
+                message,
+                hasSignedPdf,
+                signedHash);
     }
 }

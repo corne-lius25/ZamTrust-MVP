@@ -9,11 +9,15 @@ import { Divider } from '../components/Divider';
 import { Mono } from '../components/Mono';
 import { Skeleton } from '../components/Skeleton';
 import { verifyDocument, formatDate, type VerificationData } from '../lib/documents';
-import { toMessage } from '../lib/errors';
+
+type EnrichedVerification = VerificationData & {
+  hasSignedPdf?: boolean;
+  signedPdfSha256?: string | null;
+};
 
 export default function PublicVerify() {
   const { verificationId } = useParams<{ verificationId: string }>();
-  const [data, setData] = useState<VerificationData | null>(null);
+  const [data, setData] = useState<EnrichedVerification | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,9 +30,14 @@ export default function PublicVerify() {
     (async () => {
       try {
         const result = await verifyDocument(verificationId);
-        if (!cancelled) setData(result);
-      } catch (err) {
-        if (!cancelled) setError(toMessage(err));
+        if (!cancelled) setData(result as EnrichedVerification);
+      } catch (err: any) {
+        if (!cancelled) {
+          const status = err?.response?.status;
+          setError(status === 404
+            ? 'No document matches this verification ID.'
+            : 'Could not load verification details. Please try again.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -42,7 +51,7 @@ export default function PublicVerify() {
   return (
     <div className="min-h-screen bg-surface-subtle">
       <Header />
-      <main className="max-w-3xl mx-auto px-6 py-12 lg:py-20">
+      <main className="max-w-4xl mx-auto px-6 py-12 lg:py-20">
         {loading ? (
           <LoadingState />
         ) : error ? (
@@ -89,7 +98,7 @@ function Header() {
 function Footer() {
   return (
     <footer className="border-t border-border mt-20 py-8">
-      <div className="max-w-3xl mx-auto px-6 text-center">
+      <div className="max-w-4xl mx-auto px-6 text-center">
         <p className="text-caption text-ink-muted">
           Verified by ZamTrust · Cryptographic integrity for every document
         </p>
@@ -128,9 +137,7 @@ function NotFound({ message }: { message: string }) {
           </svg>
         </div>
         <h1 className="text-h3 text-ink">Document not found</h1>
-        <p className="mt-3 text-body text-ink-secondary max-w-md mx-auto">
-          {message || 'No document matches this verification ID. Check the link or ask the sender to resend it.'}
-        </p>
+        <p className="mt-3 text-body text-ink-secondary max-w-md mx-auto">{message}</p>
         <div className="mt-6 flex justify-center gap-3">
           <ButtonLink to="/" variant="secondary">
             Return home
@@ -143,7 +150,7 @@ function NotFound({ message }: { message: string }) {
 
 /* -------------------------------------------------------------------------- */
 
-function Result({ data }: { data: VerificationData }) {
+function Result({ data }: { data: EnrichedVerification }) {
   const isValid = data.message === 'VALID';
   const isNotSigned = data.message === 'NOT_SIGNED';
   const statusVariant = isValid ? 'success' : isNotSigned ? 'warning' : 'danger';
@@ -154,10 +161,9 @@ function Result({ data }: { data: VerificationData }) {
       ? 'This document has not been signed yet.'
       : 'This document has been altered.';
 
-  const verifyUrl =
-    typeof window !== 'undefined'
-      ? window.location.href
-      : `https://zamtrust.app/v/${data.verificationId}`;
+  const verifyUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const signedPdfUrl = `/api/verifications/${data.verificationId}/signed-pdf`;
+  const previewUrl = `/api/verifications/${data.verificationId}/signed-pdf-preview`;
 
   return (
     <div className="space-y-8">
@@ -200,7 +206,7 @@ function Result({ data }: { data: VerificationData }) {
         </div>
       </div>
 
-      {/* Verification ID + QR */}
+      {/* Verification metadata + QR */}
       <Card>
         <div className="grid md:grid-cols-5 gap-6 p-6">
           <div className="md:col-span-3 space-y-4">
@@ -252,9 +258,59 @@ function Result({ data }: { data: VerificationData }) {
             </p>
           </div>
         </div>
+
+        {data.hasSignedPdf && (
+          <>
+            <Divider />
+            <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-small font-medium text-ink">Signed document</p>
+                <p className="text-caption text-ink-muted">
+                  Download or preview the PDF with the visible signature.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center h-9 px-3 rounded-btn border border-border bg-surface text-small text-ink-secondary hover:text-ink hover:border-border-strong transition-colors"
+                >
+                  Preview
+                </a>
+                <a
+                  href={signedPdfUrl}
+                  className="inline-flex items-center h-9 px-4 rounded-btn bg-accent text-white text-small font-medium hover:bg-accent-hover transition-colors"
+                >
+                  Download PDF
+                </a>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
 
-      {/* Cryptographic details */}
+      {/* Signed PDF preview */}
+      {data.hasSignedPdf && (
+        <Card>
+          <div className="px-6 py-4 border-b border-border">
+            <h2 className="text-h4 text-ink">Signed PDF preview</h2>
+            <p className="mt-0.5 text-small text-ink-secondary">
+              This is the actual signed document, with the visible signature baked in.
+            </p>
+          </div>
+          <div className="p-4">
+            <iframe
+              src={`${previewUrl}#toolbar=0&navpanes=0`}
+              title="Signed PDF preview"
+              className="w-full rounded-input border border-border bg-surface-muted"
+              style={{ height: '600px' }}
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* Cryptographic checks */}
       <Card>
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-h4 text-ink">Cryptographic checks</h2>
@@ -265,7 +321,7 @@ function Result({ data }: { data: VerificationData }) {
         <div className="px-6 py-5">
           <dl className="space-y-4">
             <Check
-              label="Document integrity"
+              label="Original document integrity"
               description="SHA-256 hash of the current file matches the hash recorded at upload."
               ok={data.integrityValid}
             />
@@ -286,6 +342,17 @@ function Result({ data }: { data: VerificationData }) {
             <Row label="Algorithm" value={data.algorithm ?? '—'} mono />
             <Row label="Verification ID" value={data.verificationId} mono />
             <Row label="Status" value={data.message} mono />
+            {data.signedPdfSha256 && (
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-small text-ink-muted flex-shrink-0">
+                  Signed PDF hash
+                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Mono truncate>{data.signedPdfSha256}</Mono>
+                  <CopyButton value={data.signedPdfSha256} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Card>

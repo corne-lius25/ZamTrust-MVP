@@ -29,6 +29,19 @@ export default function AppLayout() {
               <NavItem to="/app" end>
                 Documents
               </NavItem>
+              <NavItem to="/app/signatures">
+                Signatures
+              </NavItem>
+            </nav>
+
+            {/* Mobile fallback: show compact links instead of the hidden nav */}
+            <nav className="flex md:hidden items-center gap-1">
+              <NavItem to="/app" end>
+                Docs
+              </NavItem>
+              <NavItem to="/app/signatures">
+                Sigs
+              </NavItem>
             </nav>
           </div>
 

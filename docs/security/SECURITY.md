@@ -275,3 +275,71 @@ Tools used:
 | 401 vs 403 handling | 6 | Medium |
 | Random verification IDs | 7 | Medium |
 | JWT hardening (jti, iss, aud) | 8, 9 | Medium |
+
+
+---
+
+## Design decisions — public verification
+
+**Decision:** Signed documents are publicly viewable via their verification ID.
+
+**Rationale:**
+- Verification is the entire purpose of ZamTrust. A third party (bank, lawyer, counterparty) must be able to see what they are verifying.
+- The verification ID (ZT-YYYY-XXXXXXXXXXXX) provides 48 bits of entropy. Guessing a valid ID is computationally infeasible.
+- The URL is treated as a capability — possession of the URL grants view access. This is the same model used by DocuSign, Adobe Sign, Dropbox, and every major document platform.
+
+**Mitigations in place:**
+- Verification IDs are cryptographically random (finding #7 resolution)
+- `X-Robots-Tag: noindex, nofollow, noarchive` on all verification endpoints
+- `Cache-Control: private, no-store` — no shared caching of signed documents
+- Strict CSP on all non-PDF responses; `frame-ancestors 'self'` for PDFs only
+- Every verification and PDF download is written to the audit log
+
+**Future enhancements:**
+- Optional password/PIN protection on verification links
+- Optional expiry on verification links
+- Optional email allowlists for enterprise customers
+- Optional "one-time view" mode for high-sensitivity documents
+
+**Status:** Accepted — 2026-09-21
+
+
+---
+
+## Design decision — response headers
+
+**Decision:** All security headers are set by a single custom filter
+(`SecurityHeadersFilter`). Spring Security's built-in header management is
+disabled via `.headers(h -> h.disable())`.
+
+**Rationale:**
+- Per-endpoint control: PDF responses need `frame-ancestors 'self'` and
+  `X-Frame-Options: SAMEORIGIN` so the public verification preview can
+  embed them. JSON responses need `frame-ancestors 'none'` and `DENY`.
+- Single source of truth: two systems writing the same headers causes
+  unpredictable outcomes. Observed: Spring Security's defaults were
+  overwriting our per-endpoint values.
+- Auditable: the entire header policy is in one file, readable in 60 seconds.
+
+**Filter ordering:**
+- Runs at `Ordered.HIGHEST_PRECEDENCE`, before Spring Security and before
+  Tomcat commits the response.
+- PDF detection is derived from the request URL (not the response
+  Content-Type) because headers must be set before `chain.doFilter`.
+
+**Headers set (on every response):**
+- Content-Security-Policy — strict for JSON, relaxed for PDFs
+- X-Frame-Options — DENY (or SAMEORIGIN for PDFs)
+- X-Content-Type-Options: nosniff
+- Referrer-Policy: strict-origin-when-cross-origin
+- Permissions-Policy: geolocation=(), microphone=(), camera=(), ...
+- Cross-Origin-Resource-Policy: same-site / cross-origin (PDF only)
+- Cross-Origin-Opener-Policy: same-origin
+- X-Robots-Tag: noindex, nofollow (verification endpoints)
+- Cache-Control: private, no-store (verification endpoints)
+- Strict-Transport-Security (set by Railway's TLS-terminating edge)
+
+**Verification:** `SecurityHeadersRegressionTest` asserts every header is
+present on every response and that the correct CSP variant is used.
+
+**Status:** Accepted — 2026-09-21

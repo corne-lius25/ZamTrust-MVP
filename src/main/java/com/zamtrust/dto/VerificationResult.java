@@ -10,5 +10,7 @@ public record VerificationResult(
         String signer,
         Instant signedAt,
         String algorithm,
-        String message
+        String message,
+        boolean hasSignedPdf,
+        String signedPdfSha256
 ) {}

@@ -34,6 +34,10 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jsonAuthenticationEntryPoint))
+                // Disable Spring Security's default response headers so our
+                // SecurityHeadersFilter can set them per-endpoint (e.g. relax
+                // frame-ancestors for PDF previews).
+                .headers(headers -> headers.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
