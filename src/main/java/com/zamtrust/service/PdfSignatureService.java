@@ -83,6 +83,29 @@ public class PdfSignatureService {
             throw new CryptoException("Signature image not found: " + signaturePngPath);
         }
 
+        // Verify the file is actually a PDF before attempting to parse it.
+        // PDFBox throws an obscure "End-of-File, expected line at offset X"
+        // error on non-PDF files, which is unhelpful to the caller.
+        try {
+            byte[] head = new byte[5];
+            try (var in = Files.newInputStream(originalPdfPath)) {
+                int read = in.read(head);
+                if (read < 5
+                        || head[0] != 0x25   // %
+                        || head[1] != 0x50   // P
+                        || head[2] != 0x44   // D
+                        || head[3] != 0x46   // F
+                        || head[4] != 0x2D)  // -
+                {
+                    throw new com.zamtrust.exception.NotAPdfException(
+                            "The document is not a PDF. Only PDF files can be signed "
+                            + "with a visible signature. Upload a PDF to continue.");
+                }
+            }
+        } catch (java.io.IOException e) {
+            throw new CryptoException("Could not read document file: " + e.getMessage(), e);
+        }
+
         try (PDDocument doc = Loader.loadPDF(originalPdfPath.toFile())) {
             int pageIndex = placement.getPage() - 1;
             if (pageIndex < 0 || pageIndex >= doc.getNumberOfPages()) {

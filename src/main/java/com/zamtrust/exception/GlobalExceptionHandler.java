@@ -98,4 +98,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(new ApiError(
                 Instant.now(), status.value(), status.getReasonPhrase(), msg, req.getRequestURI()));
     }
+
+    @ExceptionHandler(NotAPdfException.class)
+    public ResponseEntity<ApiError> notAPdf(NotAPdfException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req);
+    }
 }
