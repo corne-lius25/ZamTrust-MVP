@@ -30,7 +30,7 @@ public class AuthController {
 
     private static final Duration WINDOW = Duration.ofMinutes(15);
     private static final int REGISTER_LIMIT = 5;
-    private static final int LOGIN_LIMIT = 10;
+    private static final int LOGIN_LIMIT = 30;
 
     private final UserRepository userRepository;
     private final IssuedTokenRepository issuedTokenRepository;
