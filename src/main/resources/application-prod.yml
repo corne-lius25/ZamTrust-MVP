@@ -35,8 +35,8 @@ zamtrust:
     secret: ${ZAMTRUST_JWT_SECRET}
     expiration-ms: 3600000
   storage:
-    documents-dir: ${ZAMTRUST_STORAGE_DOCUMENTS_DIR:/app/storage/documents}
-    keys-dir: ${ZAMTRUST_STORAGE_KEYS_DIR:/app/storage/keys}
+    documents-dir: ${ZAMTRUST_STORAGE_DOCUMENTS_DIR:/data/documents}
+    keys-dir: ${ZAMTRUST_STORAGE_KEYS_DIR:/data/keys}
     signatures-dir: ./storage/signatures
   base-url: ${ZAMTRUST_BASE_URL}
 
