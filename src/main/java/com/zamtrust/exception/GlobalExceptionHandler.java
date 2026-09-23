@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -102,5 +103,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotAPdfException.class)
     public ResponseEntity<ApiError> notAPdf(NotAPdfException ex, HttpServletRequest req) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req);
+    }
+
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<Map<String, Object>> quotaExceeded(QuotaExceededException ex,
+                                                              HttpServletRequest req) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.PAYMENT_REQUIRED.value());
+        body.put("error", "Payment Required");
+        body.put("message", ex.getMessage());
+        body.put("action", ex.action());
+        body.put("used", ex.used());
+        body.put("limit", ex.limit());
+        body.put("plan", ex.currentPlan().name());
+        body.put("upgradeUrl", "/pricing");
+        body.put("path", req.getRequestURI());
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(body);
     }
 }

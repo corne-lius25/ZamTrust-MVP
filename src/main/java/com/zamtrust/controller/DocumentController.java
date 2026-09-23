@@ -12,6 +12,7 @@ import com.zamtrust.service.AuditService;
 import com.zamtrust.service.DocumentService;
 import com.zamtrust.service.DocumentSigningService;
 import com.zamtrust.service.SigningService;
+import com.zamtrust.service.UsageService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -33,17 +34,20 @@ public class DocumentController {
     private final DocumentSigningService documentSigningService;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final UsageService usageService;
 
     public DocumentController(DocumentService documentService,
                               SigningService signingService,
                               DocumentSigningService documentSigningService,
                               UserRepository userRepository,
-                              AuditService auditService) {
+                              AuditService auditService,
+                              UsageService usageService) {
         this.documentService = documentService;
         this.signingService = signingService;
         this.documentSigningService = documentSigningService;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.usageService = usageService;
     }
 
     private User currentUser(Authentication auth) {
@@ -101,6 +105,10 @@ public class DocumentController {
                                              @RequestBody SignWithVisibleRequest req,
                                              Authentication auth) {
         User user = currentUser(auth);
+
+        // Enforce monthly signature quota before doing any work
+        var plan = usageService.planOf(user.getId());
+        usageService.recordOrThrow(user.getId(), "SIGN", plan);
 
         SignaturePlacement placement = SignaturePlacement.builder()
                 .page(req.page() == null ? 1 : req.page())

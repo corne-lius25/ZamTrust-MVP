@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import com.zamtrust.domain.Plan;
+import com.zamtrust.service.UsageService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/verifications")
@@ -24,17 +27,25 @@ public class VerificationController {
     private final VerificationService verificationService;
     private final DocumentRepository documentRepository;
     private final SignedDocumentRepository signedDocumentRepository;
+    private final UsageService usageService;
 
     public VerificationController(VerificationService verificationService,
                                   DocumentRepository documentRepository,
-                                  SignedDocumentRepository signedDocumentRepository) {
+                                  SignedDocumentRepository signedDocumentRepository,
+                                  UsageService usageService) {
         this.verificationService = verificationService;
         this.documentRepository = documentRepository;
         this.signedDocumentRepository = signedDocumentRepository;
+        this.usageService = usageService;
     }
 
     @GetMapping("/{verificationId}")
-    public ResponseEntity<VerificationResult> verify(@PathVariable String verificationId) {
+    public ResponseEntity<VerificationResult> verify(@PathVariable String verificationId,
+                                                      HttpServletRequest http) {
+        String ip = clientIp(http);
+        String ipHash = usageService.hashIp(ip);
+        usageService.recordAnonymousOrThrow(ipHash, "VERIFY_ANON",
+                Plan.anonymousVerificationLimit());
         return ResponseEntity.ok(verificationService.verifyByVerificationId(verificationId));
     }
 
@@ -96,5 +107,14 @@ public class VerificationController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .body(resource);
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            int comma = xff.indexOf(',');
+            return (comma > 0 ? xff.substring(0, comma) : xff).trim();
+        }
+        return request.getRemoteAddr();
     }
 }

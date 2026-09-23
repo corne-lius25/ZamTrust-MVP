@@ -2,12 +2,14 @@ package com.zamtrust.controller;
 
 import com.zamtrust.domain.IssuedToken;
 import com.zamtrust.domain.Role;
+import com.zamtrust.domain.Subscription;
 import com.zamtrust.domain.User;
 import com.zamtrust.dto.AuthResponse;
 import com.zamtrust.dto.LoginRequest;
 import com.zamtrust.dto.RegisterRequest;
 import com.zamtrust.repository.IssuedTokenRepository;
 import com.zamtrust.repository.UserRepository;
+import com.zamtrust.repository.SubscriptionRepository;
 import com.zamtrust.security.JwtService;
 import com.zamtrust.security.RateLimiter;
 import com.zamtrust.service.AuditService;
@@ -38,19 +40,22 @@ public class AuthController {
     private final JwtService jwtService;
     private final AuditService auditService;
     private final RateLimiter rateLimiter;
+    private final SubscriptionRepository subscriptionRepository;
 
     public AuthController(UserRepository userRepository,
                           IssuedTokenRepository issuedTokenRepository,
                           PasswordEncoder passwordEncoder,
                           JwtService jwtService,
                           AuditService auditService,
-                          RateLimiter rateLimiter) {
+                          RateLimiter rateLimiter,
+                          SubscriptionRepository subscriptionRepository) {
         this.userRepository = userRepository;
         this.issuedTokenRepository = issuedTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.auditService = auditService;
         this.rateLimiter = rateLimiter;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @PostMapping("/register")
@@ -80,6 +85,13 @@ public class AuthController {
                 .roles(Set.of(Role.DOCUMENT_USER))
                 .build();
         userRepository.save(u);
+
+        // Every user starts on the FREE plan with a subscription row
+        subscriptionRepository.save(Subscription.builder()
+                .userId(u.getId())
+                .plan(com.zamtrust.domain.Plan.FREE)
+                .active(true)
+                .build());
 
         auditService.log(u, "REGISTER", "user:" + u.getId(), "new account", ip);
         return ResponseEntity.ok(Map.of("message", "Registered successfully"));
