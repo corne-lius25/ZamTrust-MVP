@@ -9,7 +9,9 @@ import Dashboard from './pages/Dashboard'
 import DocumentDetail from './pages/DocumentDetail'
 import Signatures from './pages/Signatures'
 import SignDocument from './pages/SignDocument';
+import Upgrade from './pages/Upgrade';
 import PublicVerify from './pages/PublicVerify'
+import Pricing from './pages/Pricing';
 import AppLayout from './layouts/AppLayout'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -29,6 +31,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/v/:verificationId" element={<PublicVerify />} />
+        <Route path="/pricing" element={<Pricing />} />
 
         <Route
           path="/app"
@@ -41,6 +44,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="documents/:id" element={<DocumentDetail />} />
           <Route path="documents/:id/sign" element={<SignDocument />} />
+          <Route path="upgrade" element={<Upgrade />} />
           <Route path="signatures" element={<Signatures />} />
         </Route>
 

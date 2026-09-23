@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/store';
+import { UsageCard } from '../components/UsageCard';
 
 export default function AppLayout() {
   const user = useAuth((s) => s.user);
@@ -95,7 +96,14 @@ export default function AppLayout() {
       </header>
 
       <main className="max-w-wide mx-auto px-6 lg:px-8 py-10">
-        <Outlet />
+        <div className="grid lg:grid-cols-[1fr_320px] gap-8">
+          <div className="min-w-0">
+            <Outlet />
+          </div>
+          <aside className="hidden lg:block space-y-4">
+            <UsageCard />
+          </aside>
+        </div>
       </main>
     </div>
   );

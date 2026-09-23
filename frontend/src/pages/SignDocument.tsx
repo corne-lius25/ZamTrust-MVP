@@ -9,6 +9,8 @@ import { getDocument, type DocumentRow } from '../lib/documents';
 import { listSignatures, signatureImageUrl, type SignatureDto } from '../lib/signatures';
 import { api } from '../lib/api';
 import { toMessage } from '../lib/errors';
+import { UpgradePrompt, type QuotaInfo } from '../components/UpgradePrompt';
+import { extractQuotaError } from '../lib/apiQuota';
 
 export default function SignDocument() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,7 @@ export default function SignDocument() {
     height: 0.12,
   });
   const [error, setError] = useState<string | null>(null);
+  const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -107,7 +110,13 @@ export default function SignDocument() {
       });
       navigate(`/app/documents/${doc.id}`, { replace: true });
     } catch (e) {
-      setError(toMessage(e));
+      const q = extractQuotaError(e);
+      if (q) {
+        setQuota(q);
+        setError(null);
+      } else {
+        setError(toMessage(e));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -139,6 +148,7 @@ export default function SignDocument() {
               </p>
             </div>
             <div className="p-6">
+              {quota && <UpgradePrompt quota={quota} className="mb-4" />}
               {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
               {pdfBlobUrl && sigBlobUrl ? (
                 <PdfPlacement
